@@ -1,0 +1,3 @@
+date,amount,description
+not-a-date,125.00,Invalid date
+2026-10-02,not-a-number,Invalid amount

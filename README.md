@@ -59,6 +59,13 @@ Expected columns (aliases work too): `date`, `amount` (or `total`, `price`, `deb
 
 Interactive docs: [http://localhost:8001/docs](http://localhost:8001/docs)
 
+Backend tests, from the `backend` directory:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
 ## Frontend
 
 ```bash
