@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sklearn.ensemble import IsolationForest
 
 from analysis import clean_transactions, load_upload, preview_rows, summarize
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="MarginFlow API",
@@ -37,7 +41,7 @@ async def analyze(file: UploadFile = File(...)):
             detail="Unsupported file type. Upload a .csv, .xlsx, or .xls file.",
         )
 
-    contents = await file.read()
+    contents = await file.read(MAX_UPLOAD_BYTES + 1)
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
     if len(contents) > MAX_UPLOAD_BYTES:
@@ -45,6 +49,16 @@ async def analyze(file: UploadFile = File(...)):
 
     try:
         transactions = clean_transactions(load_upload(filename, contents))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Could not parse uploaded file %r", filename)
+        raise HTTPException(
+            status_code=400,
+            detail="Could not process this file. Verify that it is a valid CSV or Excel document.",
+        ) from exc
+
+    try:
         if len(transactions) > 1:
             predictions = IsolationForest(
                 contamination=0.05,
@@ -65,10 +79,9 @@ async def analyze(file: UploadFile = File(...)):
             "anomaly_count": len(anomalies),
             "anomalies": anomalies,
         }
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        logger.exception("Transaction analysis failed for uploaded file %r", filename)
         raise HTTPException(
-            status_code=400,
-            detail=f"Could not parse the spreadsheet: {exc}",
+            status_code=500,
+            detail="Transaction analysis failed unexpectedly. Please try again.",
         ) from exc

@@ -57,11 +57,20 @@ def load_upload(filename: str, contents: bytes) -> pd.DataFrame:
     buffer = BytesIO(contents)
 
     if suffix == "csv":
-        return pd.read_csv(buffer)
-    if suffix == "xlsx":
-        return pd.read_excel(buffer, engine="openpyxl")
-    if suffix == "xls":
-        return pd.read_excel(buffer, engine="xlrd")
+        try:
+            return pd.read_csv(buffer)
+        except pd.errors.EmptyDataError as exc:
+            raise ValueError("The CSV file is empty or has no header row.") from exc
+        except (pd.errors.ParserError, UnicodeDecodeError) as exc:
+            raise ValueError("Could not read the CSV. Check that it is a valid file.") from exc
+    if suffix in {"xlsx", "xls"}:
+        engine = "openpyxl" if suffix == "xlsx" else "xlrd"
+        try:
+            return pd.read_excel(buffer, engine=engine)
+        except Exception as exc:
+            raise ValueError(
+                "Could not read the Excel file. It may be corrupted or unsupported."
+            ) from exc
 
     raise ValueError("Unsupported file type. Upload a .csv, .xlsx, or .xls file.")
 
